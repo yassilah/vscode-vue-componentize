@@ -2,7 +2,7 @@
   "name": "vue-componentize",
   "displayName": "Vue Componentize",
   "description": "Turn a component block into a vue component.",
-  "version": "0.3.0",
+  "version": "0.0.1",
   "publisher": "yassi",
   "engines": {
     "vscode": "^1.43.0"
