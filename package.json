@@ -2,7 +2,7 @@
   "name": "vue-componentize",
   "displayName": "Vue Componentize",
   "description": "Turn a component block into a vue component.",
-  "version": "0.1.0",
+  "version": "0.0.2",
   "publisher": "yassi",
   "license": "MIT",
   "engines": {
@@ -24,7 +24,7 @@
         "title": "Vue-Componentize",
         "properties": {
           "vue-componentize.components.path": {
-            "description": "Defines the default path to write the newly created components.",
+            "description": "Defines the default path to add the newly created components.",
             "type": "string",
             "default": "${root}/src/components"
           },
@@ -57,6 +57,11 @@
             "type": "boolean",
             "default": "true"
           },
+          "vue-componentize.script.ts.import.path": {
+            "description": "Defines the default path to write the import statement of the newly created components.",
+            "type": "string",
+            "default": "@/components"
+          },
           "vue-componentize.script.ts.import.template": {
             "description": "The template for adding a new import for a newly created component (${name}: studly name of the component, ${path}: relative path of the component).",
             "type": "string",
@@ -66,6 +71,11 @@
             "description": "Whether you would like the extension to automatically add an import for the newly created component inside your <script> tag.",
             "type": "boolean",
             "default": "true"
+          },
+          "vue-componentize.script.js.import.path": {
+            "description": "Defines the default path to write the import statement of the newly created components.",
+            "type": "string",
+            "default": "@/components"
           },
           "vue-componentize.script.js.import.template": {
             "description": "The template for adding a new import for a newly created component (${name}: studly name of the component, ${path}: relative path of the component).",

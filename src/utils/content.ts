@@ -20,7 +20,7 @@ import {
 } from 'vue-template-compiler'
 import { writeFileSync } from 'fs'
 import { studlyCase } from './text'
-import { basename } from 'path'
+import { basename, join } from 'path'
 import { kebabCase } from 'lodash'
 /**
  * Get template tag text.
@@ -209,9 +209,11 @@ export function getImportToCurrentDocumentText(
     `script.${language}.import.template`
   ) as string
 
+  const path = configuration.get(`script.${language}.import.path`) as string
+
   return template
     .replace(/\${name}/, studlyName)
-    .replace(/\${path}/, relativePath)
+    .replace(/\${path}/, join(path, basename(relativePath)))
 }
 
 /**
