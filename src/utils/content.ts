@@ -73,7 +73,12 @@ export function getPropsList(content: string) {
           if ('@binding' in token) {
             token['@binding'].match(/[A-z_]+/g).forEach((key: string) => {
               if (!exclude.includes(key)) {
-                props.push({ type: 'any', key, required: false })
+                props.push({
+                  type: 'any',
+                  key,
+                  camelKey: camelCase(key),
+                  required: false
+                })
               }
             })
           }
@@ -82,12 +87,23 @@ export function getPropsList(content: string) {
     } else if ('directives' in block && block.directives) {
       block.directives.forEach(directive => {
         if (!exclude.includes(directive.value)) {
-          props.push({ type: 'any', key: directive.value, required: false })
+          props.push({
+            type: 'any',
+            key: directive.value,
+            required: false,
+            camelKey: camelCase(directive.value),
+            model: directive.name === 'model'
+          })
         }
       })
     } else if ('for' in block && block.for) {
       if (!exclude.includes(block.for)) {
-        props.push({ type: 'any[]', key: block.for, required: false })
+        props.push({
+          type: 'any[]',
+          key: block.for,
+          camelKey: camelCase(block.for),
+          required: false
+        })
       }
       if (block.alias) exclude.push(block.alias)
       if (block.iterator1) exclude.push(block.iterator1)
@@ -125,10 +141,7 @@ export function getPropsText(
         .map(prop => {
           return template
             .replace(/\${options}/g, prop.required ? `{ required: true }` : '')
-            .replace(
-              /\${name}/g,
-              camelCase(prop.key) + (prop.required ? '!' : '?')
-            )
+            .replace(/\${name}/g, prop.camelKey + (prop.required ? '!' : '?'))
             .replace(/\${type}/g, prop.type)
         })
         .join('\n\t'),
@@ -140,7 +153,7 @@ export function getPropsText(
       '\tprops: {',
       ...propsList.map(prop =>
         template
-          .replace(/\${name}/g, camelCase(prop.key))
+          .replace(/\${name}/g, prop.camelKey)
           .replace(/\${type}/g, prop.type)
           .replace(/\${required}/g, prop.required)
       ),
@@ -270,19 +283,22 @@ export async function createComponent(
   for (let i = 0; i < propsList.length; i++) {
     const prop = propsList[i]
     let type = await window.showQuickPick(types, {
-      placeHolder: `What is the type of the "${prop.key}" prop?`
+      placeHolder: `What is the type of the "${prop.camelKey}" prop?`
     })
     if (type === 'Other') {
       type = await window.showInputBox({
-        placeHolder: `What is the type of the "${prop.key}" prop?`,
+        placeHolder: `What is the type of the "${prop.camelKey}" prop?`,
         value: prop.type
       })
     }
     prop.type = type || 'any'
     const required = await window.showQuickPick(['Yes', 'No'], {
-      placeHolder: `Should the "${prop.key}" prop be required?`
+      placeHolder: `Should the "${prop.camelKey}" prop be required?`
     })
     prop.required = required === 'Yes'
+    if (prop.model) {
+      text.replace(`v-model="${prop.key}"`, `v-model="${prop.camelKey}"`)
+    }
   }
 
   writeFileSync(
