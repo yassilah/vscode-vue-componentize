@@ -272,7 +272,7 @@ export async function createComponent(
   studlyName: string,
   configuration: WorkspaceConfiguration
 ) {
-  const text = editor.document.getText(editor.selection)
+  let text = editor.document.getText(editor.selection)
   const propsList = getPropsList(text)
   const language = configuration.get('script.defaultLanguage') as string
   const types =
@@ -297,7 +297,7 @@ export async function createComponent(
     })
     prop.required = required === 'Yes'
     if (prop.model) {
-      text.replace(`v-model="${prop.key}"`, `v-model="${prop.camelKey}"`)
+      text = text.replace(`v-model="${prop.key}"`, `v-model="${prop.camelKey}"`)
     }
   }
 
