@@ -16,6 +16,90 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": [
+      {
+        "title": "Vue-Componentize",
+        "properties": {
+          "vue-componentize.components.path": {
+            "description": "Defines the default path to write the newly created components.",
+            "type": "string",
+            "default": "${root}/src/components"
+          },
+          "vue-componentize.script.defaultLanguage": {
+            "type": "string",
+            "description": "Defines the default language used when adding a <script> tag.",
+            "enum": [
+              "ts",
+              "js"
+            ],
+            "default": "js"
+          },
+          "vue-componentize.script.ts.template": {
+            "description": "Defines the template when creating an empty <script> tag in TypeScript.",
+            "type": "string",
+            "default": "import { Vue, Component, Prop } from 'vue-property-decorator'\n\n@Component\nexport default class ${name} extends Vue {${content}}"
+          },
+          "vue-componentize.script.ts.props.add": {
+            "description": "Whether to automatically add props to the newly created component.",
+            "type": "boolean",
+            "default": "true"
+          },
+          "vue-componentize.script.ts.props.template": {
+            "description": "Defines the template for adding props into the newly created component in TypeScript (${options}: options of the prop, ${name}: snakeCased name of the prop, ${type}: type of the prop).",
+            "type": "string",
+            "default": "@Prop(${options}) private ${name}: ${type}"
+          },
+          "vue-componentize.script.ts.import.add": {
+            "description": "Whether you would like the extension to automatically add an import for the newly created component inside your <script> tag.",
+            "type": "boolean",
+            "default": "true"
+          },
+          "vue-componentize.script.ts.import.template": {
+            "description": "The template for adding a new import for a newly created component (${name}: studly name of the component, ${path}: relative path of the component).",
+            "type": "string",
+            "default": "import ${name} from '${path}'\n"
+          },
+          "vue-componentize.script.js.import.add": {
+            "description": "Whether you would like the extension to automatically add an import for the newly created component inside your <script> tag.",
+            "type": "boolean",
+            "default": "true"
+          },
+          "vue-componentize.script.js.import.template": {
+            "description": "The template for adding a new import for a newly created component (${name}: studly name of the component, ${path}: relative path of the component).",
+            "type": "string",
+            "default": "import ${name} from '${path}'\n\n"
+          },
+          "vue-componentize.script.js.props.add": {
+            "description": "Whether to automatically add props to the newly created component.",
+            "type": "boolean",
+            "default": "true"
+          },
+          "vue-componentize.script.js.props.template": {
+            "description": "Defines the template for adding props into the newly created component in JavaScript (${name}: snakeCased name of the prop, ${type}: type of the prop).",
+            "type": "string",
+            "default": "${name}: {\n\trequired:${required}}"
+          },
+          "vue-componentize.script.js.template": {
+            "description": "Defines the template when creating an empty <script> tag in JavaScript.",
+            "type": "string",
+            "default": "export default {${content}}"
+          },
+          "vue-componentize.template.defaultLanguage": {
+            "description": "Defines the default language used when adding a <template> tag.",
+            "type": "string",
+            "enum": [
+              "html"
+            ],
+            "default": "html"
+          },
+          "vue-componentize.template.html.template": {
+            "description": "Defines the template when creating an empty <template> tag in HTML. Useful if you would like the newly created components to be wrapped inside <div> tags for instance. (${content}: content of the component)",
+            "type": "string",
+            "default": "${content}"
+          }
+        }
+      }
+    ],
     "commands": [
       {
         "command": "extension.componentize",
@@ -48,6 +132,7 @@
   "dependencies": {
     "@types/lodash": "^4.14.149",
     "fs": "^0.0.1-security",
-    "path": "^0.12.7"
+    "path": "^0.12.7",
+    "vue-template-compiler": "^2.6.11"
   }
 }

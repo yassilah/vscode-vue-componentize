@@ -1,55 +1,58 @@
-import { window, workspace, Uri, commands, ExtensionContext } from 'vscode'
-import { join } from 'path'
-import { writeFileSync } from 'fs'
 import {
-  getRootPath,
-  getVSPath,
-  getRelativePath,
-  getComponentsPath
-} from './utils/path'
-import { getSelectedText, studlyCase } from './utils/text'
+  workspace,
+  commands,
+  ExtensionContext,
+  window,
+  TextEditor
+} from 'vscode'
+import { parseComponent } from 'vue-template-compiler'
+import { studlyCase } from './utils/text'
+import { getComponentPath, getRelativePath } from './utils/path'
 import {
-  createContent,
-  replaceContent,
-  addImport,
-  addRegisterComponent
+  addImportToCurrentDocument,
+  createComponent,
+  replaceSelectionWithComponent
 } from './utils/content'
 
 export function activate(context: ExtensionContext) {
-  const disposable = commands.registerCommand(
+  const disposable = commands.registerTextEditorCommand(
     'extension.componentize',
-    async () => {
+    async (editor: TextEditor) => {
       try {
-        const rootPath = getRootPath()
-        const text = getSelectedText()
-
-        if (rootPath && text) {
-          const editor = window.activeTextEditor!
-
+        if (editor.document.languageId === 'vue') {
+          const { selection } = editor
+          const text = editor.document.getText(selection)
+          const component = parseComponent(editor.document.getText())
+          const configuration = workspace.getConfiguration('vue-componentize')
           const name = await window.showInputBox({
             prompt: 'What should the name of your component be?',
-            validateInput(value) {
+            validateInput(value: string) {
               if (value === '') {
                 return 'The name cannot be empty.'
               }
             }
           })
-
           const studlyName = studlyCase(name)
-          const filePath = join(getComponentsPath(), `${studlyName}.vue`)
+          const absolutePath = getComponentPath(
+            studlyName,
+            editor,
+            configuration
+          )
+          const relativePath = getRelativePath(editor, absolutePath)
 
-          writeFileSync(filePath, createContent(text, studlyName), 'utf8')
-
-          const doc = await workspace.openTextDocument(getVSPath(filePath))
-
-          await replaceContent(text, studlyName)
-          await addImport(getRelativePath(filePath), studlyName)
-          await addRegisterComponent(studlyName)
-          editor.document.save()
-          doc.save()
+          await createComponent(editor, absolutePath, studlyName, configuration)
+          await addImportToCurrentDocument(
+            editor,
+            studlyName,
+            relativePath,
+            component,
+            configuration
+          )
+        } else {
+          throw new Error('You can only componentize inside a .vue file.')
         }
       } catch (error) {
-        console.log(error)
+        window.showErrorMessage(error)
       }
     }
   )

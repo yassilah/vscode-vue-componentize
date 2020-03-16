@@ -1,216 +1,343 @@
-import { window } from 'vscode'
+import {
+  Position,
+  WorkspaceConfiguration,
+  TextEditor,
+  Uri,
+  workspace,
+  commands,
+  window,
+  TextEditorEdit,
+  WorkspaceEdit,
+  TextEdit
+} from 'vscode'
+import {
+  SFCDescriptor,
+  parseComponent,
+  compile,
+  ASTNode,
+  ASTElement,
+  ASTText
+} from 'vue-template-compiler'
+import { writeFileSync } from 'fs'
+import { studlyCase } from './text'
+import { basename } from 'path'
 import { kebabCase } from 'lodash'
-
 /**
- * Create file content.
+ * Get template tag text.
  */
-export function createContent(text: string, name: string) {
-  return [createTemplate(text), createScript(text, name)].join('\n\n').trim()
+export function getTemplateTag(
+  content: string,
+  configuration: WorkspaceConfiguration
+) {
+  const language = configuration.get(`template.defaultLanguage`) as string
+  const template = configuration.get(`template.${language}.template`) as string
+  return [
+    `<template${language !== 'html' ? ` lang="${language}"` : ''}>`,
+    template.replace(/\${content}/, content),
+    '</template>'
+  ].join('\n')
 }
 
 /**
- * Create new component block.
+ * Get script tag text.
  */
-export function createComponentBlock(text: string, name: string) {
-  const props = guessProps(text)
-    .map(prop => {
-      return prop.type === 'model'
-        ? `v-model="${prop.key}`
-        : `:${kebabCase(prop.key)}="${prop.key}"`
-    })
-    .join(' ')
+export function getScriptTag(
+  studlyName: string,
+  propsList: any[],
+  configuration: WorkspaceConfiguration
+) {
+  const language = configuration.get(`script.defaultLanguage`) as string
+  const template = configuration.get(`script.${language}.template`) as string
 
-  return `<${kebabCase(name)} ${props} />`.trim()
+  return [
+    '\n',
+    `<script${language !== 'js' ? ` lang="${language}"` : ''}>`,
+    template
+      .replace(/\${content}/, getPropsText(propsList, configuration, language))
+      .replace(/\${name}/, studlyName),
+    '</script>'
+  ].join('\n')
 }
 
 /**
- * Replace the current selection with the new component.
+ * Get the list of props to add.
  */
-export async function replaceContent(text: string, name: string) {
-  const editor = window.activeTextEditor
-  if (editor) {
-    return await editor.edit(builder =>
-      builder.replace(editor.selection, createComponentBlock(text, name))
-    )
-  }
-}
+export function getPropsList(content: string) {
+  const compiled = compile(content)
 
-/**
- * Add the import for the newly created component.
- */
-export async function addImport(path: string, name: string) {
-  const editor = window.activeTextEditor
-  if (editor) {
-    const language = getScriptLanguage()
-    const regex = /<script.*?>[\s\S]*?(@Component)/
-    const text = editor.document.getText()
-    const match = regex.exec(text)
-    if (match !== null) {
-      const index = match.index + match[0].indexOf(match[1])
-      const position = editor.document.positionAt(index - 1)
-      return await editor.edit(builder => {
-        switch (language) {
-          case 'ts':
-          case 'typescript':
-            return builder.insert(position, `import ${name} from '${path}'\n`)
-          default:
-            return builder.insert(position, `import ${name} from '${path}'\n`)
+  const props: any[] = []
+
+  function _(block: ASTElement | ASTText | ASTNode, exclude: string[] = []) {
+    if ('tokens' in block) {
+      block.tokens.forEach(token => {
+        if (typeof token === 'object') {
+          if ('@binding' in token) {
+            token['@binding'].match(/[A-z_]+/g).forEach((key: string) => {
+              if (!exclude.includes(key)) {
+                props.push({ type: 'any', key, required: false })
+              }
+            })
+          }
         }
       })
-    }
-  }
-}
-
-/**
- * Add the component to the registered components.
- */
-export async function addRegisterComponent(name: string) {
-  const editor = window.activeTextEditor
-  if (editor) {
-    const language = getScriptLanguage()
-    if (language === 'js') {
-    } else if (language === 'ts') {
-      const text = editor.document.getText()
-      const regexAlreadyComponents = /<script.*?>[\s\S]*?(?:@Component\({[\s\S]*?components:[\s\S]*?{([\s\S]*?)}[\s\S]*?}[\s\S]*?\))/
-      const regexAlreadyOptions = /<script.*?>[\s\S]*?(?:@Component\({([\s\S]*?)}[\s\S]*?\))/
-      const regexNoOptions = /<script.*?>[\s\S]*?(@Component)/
-      let match
-
-      if ((match = regexAlreadyComponents.exec(text)) !== null) {
-        const index = match.index + match[0].indexOf(match[1]) + match[1].length
-        const position = editor.document.positionAt(index)
-        return await editor.edit(builder => {
-          builder.insert(position, `, ${name}`)
-        })
-      } else if ((match = regexAlreadyOptions.exec(text)) !== null) {
-        const index = match.index + match[0].indexOf(match[1]) + match[1].length
-        const position = editor.document.positionAt(index)
-        return await editor.edit(builder => {
-          builder.insert(position, `,\n\tcomponents: { ${name} }\n`)
-        })
-      } else if ((match = regexNoOptions.exec(text)) !== null) {
-        const index = match.index + match[0].indexOf(match[1]) + match[1].length
-        const position = editor.document.positionAt(index)
-        return await editor.edit(builder => {
-          builder.insert(position, `({\n\tcomponents: { ${name} }\n})`)
-        })
+    } else if ('directives' in block && block.directives) {
+      block.directives.forEach(directive => {
+        if (!exclude.includes(directive.value)) {
+          props.push({ type: 'any', key: directive.value, required: false })
+        }
+      })
+    } else if ('for' in block && block.for) {
+      if (!exclude.includes(block.for)) {
+        props.push({ type: 'any[]', key: block.for, required: false })
       }
+      if (block.alias) exclude.push(block.alias)
+      if (block.iterator1) exclude.push(block.iterator1)
+      if (block.iterator2) exclude.push(block.iterator2)
+    }
+
+    if ('children' in block) {
+      block.children.forEach(b => _(b, exclude))
     }
   }
+
+  if (compiled.ast) {
+    _(compiled.ast)
+  }
+
+  return props
 }
 
 /**
- * Create script.
+ * Get props text.
  */
-export function createScript(text: string, name: string) {
-  const language = getScriptLanguage()
-  switch (language) {
-    case 'ts':
-    case 'typescript':
-      return [
-        '<script lang="ts">',
-        `import { Component, Vue } from 'vue-property-decorator'`,
-        '\n@Component',
-        `export default class ${name} extends Vue {`,
-        createProps(text, language),
-        '}',
-        '</script>'
-      ].join('\n')
-    default:
-      return [
-        '<script>',
-        'export default {',
-        createProps(text, language),
-        '}',
-        '</script>'
-      ].join('\n')
-  }
-}
+export function getPropsText(
+  propsList: any[],
+  configuration: WorkspaceConfiguration,
+  language: string
+) {
+  const template = configuration.get(
+    `script.${language}.props.template`
+  ) as string
 
-/**
- * Create the props property.
- */
-export function createProps(text: string, language: string) {
-  const props = guessProps(text)
-  if (props.length > 0) {
-    switch (language) {
-      case 'ts':
-      case 'typescript':
-        return props
-          .map(
-            prop => `\t@${prop.decorator}() private ${prop.key}: ${prop.type}`
-          )
-          .join('\n')
-      default:
-        return [
-          '\tprops: {',
-          props
-            .map(
-              prop =>
-                `\t\t${prop.key}: {\n\t\t\ttype: ${prop.type},\n\t\t\trequired: true\n\t\t}`
-            )
-            .join(',\n'),
-          '\t}'
-        ].join('\n')
-    }
+  if (language === 'ts') {
+    return [
+      '\n\t',
+      ...propsList
+        .map(prop => {
+          return template
+            .replace(/\${options}/g, prop.required ? `{ required: true }` : '')
+            .replace(/\${name}/g, prop.key + (prop.required ? '!' : '?'))
+            .replace(/\${type}/g, prop.type)
+        })
+        .join('\n\t'),
+      '\n'
+    ].join('')
+  } else if (language === 'js') {
+    return [
+      '\n',
+      '\tprops: {',
+      ...propsList.map(prop =>
+        template
+          .replace(/\${name}/g, prop.key)
+          .replace(/\${type}/g, prop.type)
+          .replace(/\${required}/g, prop.required)
+      ),
+      '\t}'
+    ].join('\n')
   }
 
   return ''
 }
 
 /**
- * Get template format.
+ * Get script tag text.
  */
-export function getScriptLanguage() {
-  return getLanguage('script', 'js')
+export function getEmptyScriptTag(
+  language: string,
+  studlyName: string,
+  configuration: WorkspaceConfiguration
+) {
+  const template = configuration.get(`script.${language}.template`) as string
+  return [
+    '\n',
+    `<script${language !== 'js' ? ` lang="${language}"` : ''}>`,
+    template.replace(/\${name}/, studlyName).replace(/\${content}/, ''),
+    '</script>'
+  ].join('\n')
 }
 
 /**
- * Create template.
+ * Add a script tag if the current document does not contain one.
  */
-export function createTemplate(text: string) {
-  const language = getTemplateLanguage()
-  switch (language) {
-    default:
-      return ['<template>', text, '</template>'].join('\n')
+export async function addEmptyScriptToCurrentDocument(
+  editor: TextEditor,
+  component: SFCDescriptor,
+  configuration: WorkspaceConfiguration
+) {
+  const position = component.template
+    ? new Position(
+        editor.document.positionAt(component.template.end!).line + 1,
+        0
+      )
+    : new Position(0, 0)
+
+  const language = configuration.get('script.defaultLanguage') as string
+  const studlyName = studlyCase(basename(editor.document.fileName, 'vue'))
+
+  const text = getEmptyScriptTag(language, studlyName, configuration)
+
+  await editor.edit(builder => {
+    builder.insert(position, text)
+  })
+
+  return parseComponent(editor.document.getText())
+}
+
+/**
+ * Get the import text.
+ */
+export function getImportToCurrentDocumentText(
+  language: string,
+  studlyName: string,
+  relativePath: string,
+  configuration: WorkspaceConfiguration
+) {
+  const template = configuration.get(
+    `script.${language}.import.template`
+  ) as string
+
+  return template
+    .replace(/\${name}/, studlyName)
+    .replace(/\${path}/, relativePath)
+}
+
+/**
+ * Add the newly created component to the list of imports.
+ */
+export async function addImportToCurrentDocument(
+  editor: TextEditor,
+  studlyName: string,
+  relativePath: string,
+  component: SFCDescriptor,
+  configuration: WorkspaceConfiguration
+) {
+  if (!component.script || !component.script!.content) {
+    component = await addEmptyScriptToCurrentDocument(
+      editor,
+      component,
+      configuration
+    )
   }
+
+  const language = component.script!.lang || 'js'
+  const { line } = editor.document.positionAt(component.script!.start!)
+  const position = new Position(line + 1, 0)
+  const text = getImportToCurrentDocumentText(
+    language,
+    studlyName,
+    relativePath,
+    configuration
+  )
+
+  await editor.edit(builder => {
+    builder.insert(position, text)
+  })
+
+  return parseComponent(editor.document.getText())
 }
 
 /**
- * Get template format.
+ * Create the new component.
  */
-export function getTemplateLanguage() {
-  return getLanguage('template', 'html')
-}
+export async function createComponent(
+  editor: TextEditor,
+  absolutePath: string,
+  studlyName: string,
+  configuration: WorkspaceConfiguration
+) {
+  const text = editor.document.getText(editor.selection)
+  const propsList = getPropsList(text)
+  const language = configuration.get('script.defaultLanguage') as string
+  const types =
+    language === 'js'
+      ? ['Number', 'String', 'Function', 'Other']
+      : ['number', 'string', 'Function', 'any', 'any[]', 'Other']
 
-/**
- * Get the content of a given block.
- */
-export function getLanguage(tag: string, defaultValue: string) {
-  if (window.activeTextEditor) {
-    const regex = new RegExp(`<${tag}(?:.*?lang="(.*?)".*?)?>`)
-    const lang = regex.exec(window.activeTextEditor.document.getText())
-    return (lang && lang[1]) || defaultValue
-  }
-
-  return defaultValue
-}
-
-/**
- * Guess the props from the template.
- */
-export function guessProps(text: string) {
-  const props = []
-  const regex = /(?:{{(.*)?}})|(?:@(?:.*?)="(.*?)")|(?:v-model="(.*?)")/gm
-  let matches
-  while ((matches = regex.exec(text)) !== null) {
-    if (matches[1]) {
-      props.push({ decorator: 'Prop', type: 'string', key: matches[1] })
-    } else if (matches[2]) {
-      props.push({ decorator: 'Prop', type: 'Function', key: matches[2] })
-    } else if (matches[3]) {
-      props.push({ decorator: 'Model', type: 'string', key: matches[3] })
+  for (let i = 0; i < propsList.length; i++) {
+    const prop = propsList[i]
+    let type = await window.showQuickPick(types, {
+      placeHolder: `What is the type of the "${prop.key}" prop?`
+    })
+    if (type === 'Other') {
+      type = await window.showInputBox({
+        placeHolder: `What is the type of the "${prop.key}" prop?`,
+        value: prop.type
+      })
     }
+    prop.type = type || 'any'
+    const required = await window.showQuickPick(['Yes', 'No'], {
+      placeHolder: `Should the "${prop.key}" prop be required?`
+    })
+    prop.required = required === 'Yes'
   }
-  return props
+
+  writeFileSync(
+    absolutePath,
+    [
+      getTemplateTag(text, configuration),
+      getScriptTag(studlyName, propsList, configuration)
+    ].join('\n'),
+    { encoding: 'utf8' }
+  )
+  const uri = Uri.parse(absolutePath)
+  const doc = await workspace.openTextDocument(uri)
+  const edits = (await commands.executeCommand(
+    'vscode.executeFormatDocumentProvider',
+    doc.uri
+  )) as TextEdit[]
+  const formatEdit = new WorkspaceEdit()
+  formatEdit.set(uri, edits)
+  await workspace.applyEdit(formatEdit)
+  doc.save()
+  await replaceSelectionWithComponent(
+    editor,
+    propsList,
+    studlyName,
+    configuration
+  )
+}
+
+/**
+ * Get the component text.
+ */
+export function getComponentText(studlyName: string, propsList: any[]) {
+  return [
+    '<',
+    kebabCase(studlyName),
+    ' ',
+    propsList.map(prop => `:${kebabCase(prop.key)}="${prop.key}"`).join(' '),
+    '/>'
+  ].join('')
+}
+
+/**
+ * Replace the curent selection with the newly created component.
+ */
+export async function replaceSelectionWithComponent(
+  editor: TextEditor,
+  propsList: any[],
+  studlyName: string,
+  configuration: WorkspaceConfiguration
+) {
+  await editor.edit(builder => {
+    builder.replace(editor.selection, getComponentText(studlyName, propsList))
+  })
+  const edits = (await commands.executeCommand(
+    'vscode.executeFormatDocumentProvider',
+    editor.document.uri
+  )) as TextEdit[]
+  const formatEdit = new WorkspaceEdit()
+  formatEdit.set(editor.document.uri, edits)
+  await workspace.applyEdit(formatEdit)
+  editor.document.save()
 }
