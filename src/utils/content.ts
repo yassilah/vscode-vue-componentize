@@ -126,7 +126,10 @@ export function getPropsText(
         .map(prop => {
           return template
             .replace(/\${options}/g, prop.required ? `{ required: true }` : '')
-            .replace(/\${name}/g, prop.key + (prop.required ? '!' : '?'))
+            .replace(
+              /\${name}/g,
+              kebabCase(prop.key) + (prop.required ? '!' : '?')
+            )
             .replace(/\${type}/g, prop.type)
         })
         .join('\n\t'),
@@ -138,7 +141,7 @@ export function getPropsText(
       '\tprops: {',
       ...propsList.map(prop =>
         template
-          .replace(/\${name}/g, prop.key)
+          .replace(/\${name}/g, kebabCase(prop.key))
           .replace(/\${type}/g, prop.type)
           .replace(/\${required}/g, prop.required)
       ),
