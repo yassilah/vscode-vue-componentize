@@ -6,7 +6,6 @@ import {
   workspace,
   commands,
   window,
-  TextEditorEdit,
   WorkspaceEdit,
   TextEdit
 } from 'vscode'
@@ -21,7 +20,7 @@ import {
 import { writeFileSync } from 'fs'
 import { studlyCase } from './text'
 import { basename, join } from 'path'
-import { kebabCase } from 'lodash'
+import { kebabCase, camelCase } from 'lodash'
 /**
  * Get template tag text.
  */
@@ -128,7 +127,7 @@ export function getPropsText(
             .replace(/\${options}/g, prop.required ? `{ required: true }` : '')
             .replace(
               /\${name}/g,
-              kebabCase(prop.key) + (prop.required ? '!' : '?')
+              camelCase(prop.key) + (prop.required ? '!' : '?')
             )
             .replace(/\${type}/g, prop.type)
         })
@@ -141,7 +140,7 @@ export function getPropsText(
       '\tprops: {',
       ...propsList.map(prop =>
         template
-          .replace(/\${name}/g, kebabCase(prop.key))
+          .replace(/\${name}/g, camelCase(prop.key))
           .replace(/\${type}/g, prop.type)
           .replace(/\${required}/g, prop.required)
       ),
