@@ -1,14 +1,9 @@
 <template>
   <div>
-    <div>{{ salut + 1 / bidule }}</div>
-    <p v-html="coucou"></p>
-    <input
-      type="text"
-      v-model="caca"
+    <ergdf
+      :bidule="bidule"
+      :salut="salut"
     />
-    <div v-for="(truc, lol) in machin">
-      <p>{{ truc }}</p>
-    </div>
   </div>
 </template>
 
@@ -18,9 +13,11 @@ import { Vue, Component, Prop } from 'vue-property-decorator'
 @Component
 export default class SuperNiceComponent extends Vue {
   @Prop({ required: true }) private salut!: number
+import Ergdf from './src/components/Ergdf.vue'
   @Prop() private bidule?: string
   @Prop() private coucou?: Function
   @Prop({ required: true }) private caca!: string
   @Prop({ required: true }) private machin!: number
 }
+</script>
 </script>
