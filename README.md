@@ -6,8 +6,8 @@ This extension allows you to automatically create a separate vue component from 
 
 In a .vue file, select a block of text inside your \<template\> tag. Open the command palette, look for "Componentize" and hit enter. You will then be asked what name should the newly created component have.
 
-![vue-componentize-preview](https://github.com/yassipad/vscode-vue-componentize/blob/master/vue-componentize.gif)
-![vue-componentize-result](https://github.com/yassipad/vscode-vue-componentize/blob/master/vue-componentize.png)
+![vue-componentize-preview](https://raw.githubusercontent.com/yassipad/vscode-vue-componentize/master/vue-componentize.gif)
+![vue-componentize-result](https://raw.githubusercontent.com/yassipad/vscode-vue-componentize/master/vue-componentize.png)
 
 ## Features
 
