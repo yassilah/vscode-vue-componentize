@@ -8,6 +8,7 @@
 </template>
 
 <script lang="ts">
+import MyComponent from '../components/MyComponent.vue'
 import { Component, Vue } from 'vue-property-decorator'
 
 @Component
@@ -17,7 +18,6 @@ export default class Home extends Vue {
 
   public myMethod() {
     console.log('You clicked on my method!')
-    import MyComponent from '@/components/MyComponent.vue'
   }
 }
 </script>

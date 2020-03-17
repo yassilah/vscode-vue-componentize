@@ -1,3 +1,5 @@
 {
-	"eslint.enable": false
+	"eslint.enable": false,
+	"vue-componentize.script.js.import.path": "./src/components",
+	"vue-componentize.script.ts.import.path": "./../components"
 }
