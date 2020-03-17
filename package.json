@@ -2,7 +2,7 @@
   "name": "vue-componentize",
   "displayName": "Vue Componentize",
   "description": "Turn a component block into a vue component.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "yassi",
   "license": "MIT",
   "engines": {
@@ -154,6 +154,7 @@
     "lodash": "^4.17.15",
     "minimist": "^1.2.5",
     "path": "^0.12.7",
+    "vue-property-decorator": "^8.4.1",
     "vue-template-compiler": "^2.6.11"
   }
 }

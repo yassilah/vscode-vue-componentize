@@ -40,7 +40,6 @@ export function activate(context: ExtensionContext) {
           )
           const relativePath = getRelativePath(editor, absolutePath)
 
-          await createComponent(editor, absolutePath, studlyName, configuration)
           await addImportToCurrentDocument(
             editor,
             studlyName,
@@ -48,6 +47,7 @@ export function activate(context: ExtensionContext) {
             component,
             configuration
           )
+          await createComponent(editor, absolutePath, studlyName, configuration)
         } else {
           throw new Error('You can only componentize inside a .vue file.')
         }
